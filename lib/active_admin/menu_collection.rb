@@ -6,9 +6,9 @@ module ActiveAdmin
   # the addition of menu items to this class.
   class MenuCollection
     def initialize
-      @menus = {}
       @build_callbacks = []
-      @built = false
+      @menus_semaphore = Mutex.new
+      clear!
     end
 
     # Add a new menu item to a menu in the collection
@@ -19,8 +19,10 @@ module ActiveAdmin
     end
 
     def clear!
-      @menus = {}
-      @built = false
+      @menus_semaphore.synchronize {
+        @menus = {}
+        @built = false
+      }
     end
 
     def exists?(menu_name)
@@ -64,11 +66,14 @@ module ActiveAdmin
 
     def build_menus!
       return if built?
+      @menus_semaphore.synchronize do
+        return if built?
 
-      build_default_menu
-      run_on_build_callbacks
+        build_default_menu
+        run_on_build_callbacks
 
-      @built = true
+        @built = true
+      end
     end
 
     def run_on_build_callbacks
